@@ -85,7 +85,3 @@ docker compose up
 | GET    | `/api/v1/users/:id` | busca usuário (200, 404)                    |
 
 Todas as respostas seguem o envelope padrão com `statusCode`, `timestamp`, `path`, `traceId` e `data`/`error`.
-
-## Registries
-
-O diretório `registries/` documenta os artefatos reutilizáveis do projeto (controllers, repositórios, serviços, contratos, utilitários). Consulte antes de criar algo novo.
