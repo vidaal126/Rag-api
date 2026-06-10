@@ -1,4 +1,4 @@
-# rag-api
+# Rag-api
 
 API de RAG (Retrieval-Augmented Generation) em NestJS com arquitetura Hexagonal + DDD.
 
