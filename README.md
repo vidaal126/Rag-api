@@ -1,20 +1,20 @@
-# rag-api2
+# rag-api
 
 API NestJS com arquitetura Hexagonal + DDD.
 
 ## Stack
 
-| Item | Escolha |
-|---|---|
-| Framework | NestJS 11 (Fastify) |
-| Linguagem | TypeScript (strict) |
-| Banco | PostgreSQL 17 |
-| ORM | Prisma 7 (adapter `PrismaPg`) |
-| Logger | nestjs-pino (estruturado, pretty em dev) |
-| Segurança HTTP | @fastify/helmet, CORS, @nestjs/throttler |
-| Testes | Vitest + SWC |
-| Lint/Format | Biome + typescript-eslint (regras `no-unsafe-*`) |
-| Docs | Swagger em `/api/docs` (somente dev) |
+| Item           | Escolha                                          |
+| -------------- | ------------------------------------------------ |
+| Framework      | NestJS 11 (Fastify)                              |
+| Linguagem      | TypeScript (strict)                              |
+| Banco          | PostgreSQL 17                                    |
+| ORM            | Prisma 7 (adapter `PrismaPg`)                    |
+| Logger         | nestjs-pino (estruturado, pretty em dev)         |
+| Segurança HTTP | @fastify/helmet, CORS, @nestjs/throttler         |
+| Testes         | Vitest + SWC                                     |
+| Lint/Format    | Biome + typescript-eslint (regras `no-unsafe-*`) |
+| Docs           | Swagger em `/api/docs` (somente dev)             |
 
 ## Estrutura (Hexagonal + DDD)
 
@@ -68,21 +68,21 @@ docker compose up
 
 ## Scripts
 
-| Script | Função |
-|---|---|
-| `yarn start:dev` | dev com hot reload |
-| `yarn build` | build de produção |
-| `yarn lint` | Biome + ESLint com auto-fix |
-| `yarn lint:check` | lint sem escrita (CI) |
-| `yarn test` | testes unitários |
-| `yarn test:cov` | testes com cobertura |
+| Script            | Função                      |
+| ----------------- | --------------------------- |
+| `yarn start:dev`  | dev com hot reload          |
+| `yarn build`      | build de produção           |
+| `yarn lint`       | Biome + ESLint com auto-fix |
+| `yarn lint:check` | lint sem escrita (CI)       |
+| `yarn test`       | testes unitários            |
+| `yarn test:cov`   | testes com cobertura        |
 
 ## Endpoints de exemplo
 
-| Método | Rota | Descrição |
-|---|---|---|
-| POST | `/api/v1/users` | cria usuário (201, 422 se e-mail duplicado) |
-| GET | `/api/v1/users/:id` | busca usuário (200, 404) |
+| Método | Rota                | Descrição                                   |
+| ------ | ------------------- | ------------------------------------------- |
+| POST   | `/api/v1/users`     | cria usuário (201, 422 se e-mail duplicado) |
+| GET    | `/api/v1/users/:id` | busca usuário (200, 404)                    |
 
 Todas as respostas seguem o envelope padrão com `statusCode`, `timestamp`, `path`, `traceId` e `data`/`error`.
 
