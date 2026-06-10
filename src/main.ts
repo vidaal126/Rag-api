@@ -1,0 +1,79 @@
+import helmet from '@fastify/helmet';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from '@presentation/modules/app.module';
+import { Logger } from 'nestjs-pino';
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ trustProxy: true }),
+    { bufferLogs: true },
+  );
+
+  app.useLogger(app.get(Logger));
+
+  const config = app.get(ConfigService);
+  const isDev = config.get<string>('NODE_ENV') === 'development';
+  const corsOrigins = config
+    .get<string>('CORS_ORIGIN', '')
+    .split(',')
+    .map((o): string => o.trim())
+    .filter(Boolean);
+
+  await app.register(helmet, {
+    hsts: isDev ? false : { maxAge: 31_536_000, includeSubDomains: true },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: [`'self'`],
+        styleSrc: [`'self'`, `'unsafe-inline'`],
+        imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
+        scriptSrc: [`'self'`, `'unsafe-inline'`],
+      },
+    },
+  });
+
+  app.enableCors({
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow: boolean) => void,
+    ): void => {
+      const allowed =
+        !requestOrigin ||
+        corsOrigins.includes(requestOrigin) ||
+        (isDev && /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin));
+      callback(null, allowed);
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Trace-Id', 'Idempotency-Key'],
+    exposedHeaders: ['X-Trace-Id'],
+    credentials: false,
+    maxAge: 86_400,
+  });
+
+  app.setGlobalPrefix('api');
+
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  app.useGlobalPipes(
+    new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }),
+  );
+
+  if (isDev) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('rag-api2')
+      .setDescription('rag-api2 API')
+      .setVersion('1.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });
+  }
+
+  const port = config.get<number>('PORT', 3000);
+  await app.listen(port, '0.0.0.0');
+}
+
+void bootstrap();
