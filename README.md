@@ -55,54 +55,37 @@ src/
 ### Arquitetura Hexagonal
 
 ```mermaid
-graph TD
+graph LR
     subgraph Presentation
-        A[Controllers]
-        B[DTOs]
+        CT[Controllers]
     end
 
     subgraph Application
-        C[IngestDocumentUseCase]
-        D[ProcessQueryUseCase]
-        E[ContentSanitizerService]
+        UC[Use Cases]
+        SV[ContentSanitizer]
     end
 
     subgraph Domain
-        F[Document]
-        G[RagQuery]
-        H[IDocumentRepository]
-        I[IRagQueryRepository]
-        J[IEmbeddingProvider]
-        K[ILlmProvider]
-        L[IVectorStore]
+        EN[Entities]
+        RP[Repository Ports]
+        SP[Service Ports]
     end
 
     subgraph Infrastructure
-        M[PrismaDocumentRepository]
-        N[PrismaRagQueryRepository]
-        O[OllamaEmbeddingAdapter]
-        P[OllamaLlmAdapter]
-        Q[PgVectorStore]
-        R[PdfExtractor]
+        PR[Prisma Repositories]
+        OL[Ollama Adapters]
+        PV[PgVectorStore]
+        PD[PdfExtractor]
     end
 
-    A --> C
-    A --> D
-    C --> F
-    C --> H
-    C --> J
-    C --> L
-    C --> E
-    D --> G
-    D --> I
-    D --> J
-    D --> K
-    D --> L
-    M -->|implements| H
-    N -->|implements| I
-    O -->|implements| J
-    P -->|implements| K
-    Q -->|implements| L
+    CT --> UC
+    UC --> EN
+    UC --> RP
+    UC --> SP
+    UC --> SV
+    PR -->|implements| RP
+    OL -->|implements| SP
+    PV -->|implements| SP
 ```
 
 ---
@@ -111,35 +94,26 @@ graph TD
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Controller
-    participant PdfExtractor
-    participant ContentSanitizer
-    participant IngestUseCase
-    participant Document
-    participant OllamaEmbedding
-    participant PrismaRepo
-    participant PgVectorStore
+    participant C as Client
+    participant CT as Controller
+    participant UC as IngestUseCase
+    participant DB as PostgreSQL
+    participant OL as Ollama
+    participant PV as pgvector
 
-    Client->>Controller: POST /documents (PDF + department)
-    Controller->>PdfExtractor: extract(buffer)
-    PdfExtractor-->>Controller: text content
-    Controller->>IngestUseCase: execute(name, uploadedBy, department, content)
-    IngestUseCase->>ContentSanitizer: sanitize(content)
-    ContentSanitizer-->>IngestUseCase: sanitizedContent
-    IngestUseCase->>Document: create(name, uploadedBy, department)
-    IngestUseCase->>PrismaRepo: save(document) [PENDING]
-    IngestUseCase->>Document: startProcessing()
-    IngestUseCase->>PrismaRepo: save(document) [PROCESSING]
-    loop Para cada chunk
-        IngestUseCase->>OllamaEmbedding: embed(chunkText)
-        OllamaEmbedding-->>IngestUseCase: number[]
+    C->>CT: POST /documents (PDF)
+    CT->>CT: extract text from PDF
+    CT->>UC: execute(name, content, department)
+    UC->>UC: sanitize content
+    UC->>DB: save Document [PENDING]
+    UC->>DB: save Document [PROCESSING]
+    loop each chunk
+        UC->>OL: embed(chunk)
+        OL-->>UC: number[]
     end
-    IngestUseCase->>Document: markReady(chunks)
-    IngestUseCase->>PrismaRepo: save(document) [READY]
-    IngestUseCase->>PgVectorStore: upsertChunks(chunks)
-    IngestUseCase-->>Controller: { documentId, name, chunkCount }
-    Controller-->>Client: 201 Created
+    UC->>DB: save Document [READY]
+    UC->>PV: upsertChunks(embeddings)
+    UC-->>C: 201 { documentId, chunkCount }
 ```
 
 ---
@@ -148,29 +122,22 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Controller
-    participant ProcessUseCase
-    participant RagQuery
-    participant OllamaEmbedding
-    participant PgVectorStore
-    participant OllamaLLM
-    participant PrismaRepo
+    participant C as Client
+    participant CT as Controller
+    participant UC as ProcessUseCase
+    participant OL as Ollama
+    participant PV as pgvector
+    participant LLM as LLM
 
-    Client->>Controller: POST /rag/query (queryText + department)
-    Controller->>ProcessUseCase: execute(queryText, askedBy, department)
-    ProcessUseCase->>RagQuery: create(queryText, askedBy, department)
-    ProcessUseCase->>PrismaRepo: save(ragQuery) [PENDING]
-    ProcessUseCase->>OllamaEmbedding: embed(queryText)
-    OllamaEmbedding-->>ProcessUseCase: number[]
-    ProcessUseCase->>PgVectorStore: findSimilar(embedding, topK, department)
-    PgVectorStore-->>ProcessUseCase: SimilarChunk[]
-    ProcessUseCase->>OllamaLLM: generate(prompt + context)
-    OllamaLLM-->>ProcessUseCase: answer
-    ProcessUseCase->>RagQuery: markAnswered(answer)
-    ProcessUseCase->>PrismaRepo: save(ragQuery) [ANSWERED]
-    ProcessUseCase-->>Controller: { queryId, answer, sources }
-    Controller-->>Client: 201 Created
+    C->>CT: POST /rag/query (queryText, department)
+    CT->>UC: execute(queryText, department)
+    UC->>OL: embed(queryText)
+    OL-->>UC: number[]
+    UC->>PV: findSimilar(embedding, department)
+    PV-->>UC: relevant chunks
+    UC->>LLM: generate(prompt + context)
+    LLM-->>UC: answer
+    UC-->>C: 201 { queryId, answer, sources }
 ```
 
 Regra de dependência: `presentation → application → domain ← infrastructure`.
