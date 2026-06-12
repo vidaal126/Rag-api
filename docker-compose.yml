@@ -16,7 +16,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - '${PORT:-3000}:3000'
+      - "${PORT:-3000}:3000"
     volumes:
       - .:/app
       - /app/node_modules
@@ -26,7 +26,7 @@ services:
       - rag-api2-network
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     container_name: rag-api2-postgres
     restart: unless-stopped
     environment:
@@ -34,11 +34,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRESQL_NAME:-rag_api2}
     ports:
-      - '${POSTGRESQL_PORT:-5432}:5432'
+      - "${POSTGRESQL_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRESQL_USER:-postgres}']
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
