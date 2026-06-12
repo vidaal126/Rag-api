@@ -1,17 +1,19 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { envValidationSchema } from '@config/env.validation';
-import { HttpExceptionFilter } from '@infrastructure/http/filters/http-exception.filter';
-import { ThrottlerBehindProxyGuard } from '@infrastructure/http/guards/throttler-behind-proxy.guard';
-import { TraceIdInterceptor } from '@infrastructure/http/interceptors/trace-id.interceptor';
-import { TransformResponseInterceptor } from '@infrastructure/http/interceptors/transform-response.interceptor';
-import { Module, RequestMethod } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { LoggerModule, type Params } from 'nestjs-pino';
-import type { LevelWithSilent } from 'pino';
-import { SharedModule } from './shared.module';
-import { UserModule } from './user.module';
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { envValidationSchema } from "@config/env.validation";
+import { HttpExceptionFilter } from "@infrastructure/http/filters/http-exception.filter";
+import { ThrottlerBehindProxyGuard } from "@infrastructure/http/guards/throttler-behind-proxy.guard";
+import { TraceIdInterceptor } from "@infrastructure/http/interceptors/trace-id.interceptor";
+import { TransformResponseInterceptor } from "@infrastructure/http/interceptors/transform-response.interceptor";
+import { Module, RequestMethod } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { LoggerModule, type Params } from "nestjs-pino";
+import type { LevelWithSilent } from "pino";
+import { SharedModule } from "./shared.module";
+import { UserModule } from "./user.module";
+import { DocumentModule } from "./document.module";
+import { RagModule } from "./rag.module";
 
 interface PinoRequest extends IncomingMessage {
   routeOptions?: { url?: string };
@@ -33,25 +35,25 @@ interface PinoRequest extends IncomingMessage {
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService): Params => ({
-        forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
+        forRoutes: [{ path: "*path", method: RequestMethod.ALL }],
         pinoHttp: {
-          level: config.get<string>('LOG_LEVEL', 'info'),
+          level: config.get<string>("LOG_LEVEL", "info"),
           transport:
-            config.get<string>('NODE_ENV') !== 'production'
-              ? { target: 'pino-pretty', options: { singleLine: true } }
+            config.get<string>("NODE_ENV") !== "production"
+              ? { target: "pino-pretty", options: { singleLine: true } }
               : undefined,
-          customAttributeKeys: { responseTime: 'duration' },
+          customAttributeKeys: { responseTime: "duration" },
           customLogLevel: (
             _req: PinoRequest,
             res: ServerResponse<IncomingMessage>,
             err: Error | undefined,
           ): LevelWithSilent => {
-            if (res.statusCode >= 500 || err) return 'error';
-            if (res.statusCode >= 400) return 'warn';
-            return 'info';
+            if (res.statusCode >= 500 || err) return "error";
+            if (res.statusCode >= 400) return "warn";
+            return "info";
           },
           autoLogging: {
-            ignore: (req: PinoRequest): boolean => req.url === '/health',
+            ignore: (req: PinoRequest): boolean => req.url === "/health",
           },
           serializers: {
             req: (): Record<string, never> => ({}),
@@ -62,7 +64,7 @@ interface PinoRequest extends IncomingMessage {
             route: req.routeOptions?.url ?? req.url,
           }),
           redact: {
-            paths: ['req', 'res'],
+            paths: ["req", "res"],
             remove: true,
           },
         },
@@ -70,6 +72,8 @@ interface PinoRequest extends IncomingMessage {
     }),
     SharedModule,
     UserModule,
+    DocumentModule,
+    RagModule,
   ],
   controllers: [],
   providers: [
