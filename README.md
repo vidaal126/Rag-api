@@ -1,41 +1,45 @@
 # Rag-api
 
-API de RAG (Retrieval-Augmented Generation) em NestJS com arquitetura Hexagonal + DDD.
+API de RAG (Retrieval-Augmented Generation) em NestJS com arquitetura Hexagonal + DDD, construída para o departamento de RH.
 
-> **Status:** estrutura base do projeto. Nenhuma regra de negócio de RAG foi implementada ainda — o módulo `users` existente é apenas um exemplo de referência da arquitetura e será substituído pelos domínios reais (ingestão de documentos, chunking, embeddings, busca vetorial, geração).
+> **Status:** pipeline de RAG implementado — ingestão de PDF, chunking, embeddings, busca vetorial com isolamento por departamento e geração via LLM local. O módulo `users` permanece como exemplo de referência da arquitetura.
 
 ## Stack
 
-| Item           | Escolha                                          |
-| -------------- | ------------------------------------------------ |
-| Framework      | NestJS 11 (Fastify)                              |
-| Linguagem      | TypeScript (strict)                              |
-| Banco          | PostgreSQL 17                                    |
-| ORM            | Prisma 7 (adapter `PrismaPg`)                    |
-| Logger         | nestjs-pino (estruturado, pretty em dev)         |
-| Segurança HTTP | @fastify/helmet, CORS, @nestjs/throttler         |
-| Testes         | Vitest + SWC                                     |
-| Lint/Format    | Biome + typescript-eslint (regras `no-unsafe-*`) |
-| Docs           | Swagger em `/api/docs` (somente dev)             |
+| Item           | Escolha                                                |
+| -------------- | ------------------------------------------------------ |
+| Framework      | NestJS 11 (Fastify)                                    |
+| Linguagem      | TypeScript (strict)                                    |
+| Banco          | PostgreSQL 17 + pgvector                               |
+| ORM            | Prisma 7 (adapter `PrismaPg`)                          |
+| LLM/Embeddings | Ollama local (`nomic-embed-text` + `qwen2.5:7b`)       |
+| Extração PDF   | pdfjs-dist                                             |
+| Upload         | @fastify/multipart                                     |
+| Logger         | nestjs-pino (estruturado, pretty em dev)               |
+| Segurança HTTP | @fastify/helmet, CORS, @nestjs/throttler               |
+| Testes         | Vitest + SWC                                           |
+| Lint/Format    | Biome + typescript-eslint (regras `no-unsafe-*`)       |
+| Docs           | Swagger em `/api/docs` (somente dev)                   |
 
 ## Estrutura (Hexagonal + DDD)
 
 ```
 src/
-├── main.ts                      # bootstrap (helmet, CORS, versioning, pipes, swagger)
+├── main.ts                      # bootstrap (helmet, CORS, multipart, versioning, pipes, swagger)
 ├── config/
 │   └── env.validation.ts        # schema Joi validado no boot
 ├── domain/                      # zero dependências externas
-│   ├── entities/                # entidades (factory + props privados), VOs, exceções
+│   ├── entities/                # Document e RagQuery (máquina de estados), VOs, exceções
 │   ├── repositories/            # interfaces de repositório + tokens
-│   └── services/                # interfaces de serviços de domínio
+│   └── services/                # ports: EmbeddingProvider, LlmProvider, VectorStore
 ├── application/
-│   ├── usecases/                # orquestração: use cases + DTOs internos
-│   └── services/                # lógica pura reutilizável entre use cases
+│   ├── usecases/                # IngestDocument e ProcessQuery + DTOs internos
+│   └── services/                # ContentSanitizer (prompt injection)
 ├── infrastructure/
 │   ├── database/prisma/         # schema.prisma, models/, migrations/, PrismaService
-│   ├── repositories/            # implementações (Prisma, in-memory)
-│   ├── external/                # clients de provedores externos (LLM, embeddings)
+│   ├── repositories/            # implementações Prisma (Document, RagQuery)
+│   ├── external/                # adapters Ollama (embedding, LLM) e PdfExtractor
+│   ├── services/                # PgVectorStore (SQL raw com pgvector)
 │   ├── mappers/                 # entidade ↔ modelo de persistência
 │   └── http/                    # guards, filters, interceptors, exceções base
 ├── presentation/
@@ -48,20 +52,32 @@ src/
 
 Regra de dependência: `presentation → application → domain ← infrastructure`.
 
-## Domínios planejados (ainda não implementados)
+## Funcionalidades
 
-- **Ingestão de documentos** — upload, parsing e normalização das fontes
-- **Chunking** — segmentação dos documentos em trechos indexáveis
-- **Embeddings** — geração de vetores via provedor externo
-- **Busca vetorial** — recuperação semântica dos trechos relevantes
-- **Geração** — composição do contexto e chamada ao LLM
+- **Upload de PDF** — via `multipart/form-data`, com extração de texto (pdfjs-dist)
+- **Chunking** — segmentação dos documentos com geração de embeddings
+- **Busca vetorial** — similaridade via pgvector, com isolamento por departamento (`HR`/`FINANCE`)
+- **Geração** — resposta via LLM local com contexto dos chunks relevantes
+- **Sanitização** — remoção de padrões de prompt injection do conteúdo ingerido
+- **Anti-alucinação** — resposta padrão quando não há contexto disponível
+
+## Segurança
+
+- Sanitização de conteúdo contra prompt injection
+- Isolamento por departamento na busca vetorial
+- Prompt reforçado contra override de instruções
+- Resposta padrão quando não há chunks relevantes
 
 ## Como rodar
 
 ```bash
 cp .env.example .env
 
-# sobe o Postgres (porta 5433 no host)
+# modelos Ollama necessários
+ollama pull nomic-embed-text
+ollama pull qwen2.5:7b
+
+# sobe o Postgres com pgvector (porta 5433 no host)
 docker compose up -d postgres
 
 # aplica migrations e gera o client
@@ -77,6 +93,14 @@ Ou tudo via Docker:
 docker compose up
 ```
 
+### Variáveis de ambiente (além das já documentadas no `.env.example`)
+
+```bash
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+OLLAMA_LLM_MODEL=qwen2.5:7b
+```
+
 ## Scripts
 
 | Script            | Função                      |
@@ -88,7 +112,14 @@ docker compose up
 | `yarn test`       | testes unitários            |
 | `yarn test:cov`   | testes com cobertura        |
 
-## Endpoints de exemplo (módulo de referência)
+## Endpoints
+
+| Método | Rota                 | Descrição                                                          |
+| ------ | -------------------- | ------------------------------------------------------------------ |
+| POST   | `/api/v1/documents`  | upload de PDF (query params `uploadedBy` e `department`)            |
+| POST   | `/api/v1/rag/query`  | consulta RAG (body com `queryText`, `askedBy` e `department`)       |
+
+### Endpoints de exemplo (módulo de referência)
 
 | Método | Rota                | Descrição                                   |
 | ------ | ------------------- | ------------------------------------------- |
