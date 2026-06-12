@@ -1,0 +1,24 @@
+enum Department {
+  HR
+  FINANCE
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Document {
+  id         String         @id @default(uuid())
+  name       String
+  uploadedBy String         @map("uploaded_by")
+  department Department
+  status     DocumentStatus @default(PENDING)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  chunks     DocumentChunk[]
+
+  @@map("documents")
+}
