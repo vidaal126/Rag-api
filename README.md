@@ -88,58 +88,6 @@ graph LR
     PV -->|implements| SP
 ```
 
----
-
-### Fluxo de Ingestão de Documento
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant CT as Controller
-    participant UC as IngestUseCase
-    participant DB as PostgreSQL
-    participant OL as Ollama
-    participant PV as pgvector
-
-    C->>CT: POST /documents (PDF)
-    CT->>CT: extract text from PDF
-    CT->>UC: execute(name, content, department)
-    UC->>UC: sanitize content
-    UC->>DB: save Document [PENDING]
-    UC->>DB: save Document [PROCESSING]
-    loop each chunk
-        UC->>OL: embed(chunk)
-        OL-->>UC: number[]
-    end
-    UC->>DB: save Document [READY]
-    UC->>PV: upsertChunks(embeddings)
-    UC-->>C: 201 { documentId, chunkCount }
-```
-
----
-
-### Fluxo de Query RAG
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant CT as Controller
-    participant UC as ProcessUseCase
-    participant OL as Ollama
-    participant PV as pgvector
-    participant LLM as LLM
-
-    C->>CT: POST /rag/query (queryText, department)
-    CT->>UC: execute(queryText, department)
-    UC->>OL: embed(queryText)
-    OL-->>UC: number[]
-    UC->>PV: findSimilar(embedding, department)
-    PV-->>UC: relevant chunks
-    UC->>LLM: generate(prompt + context)
-    LLM-->>UC: answer
-    UC-->>C: 201 { queryId, answer, sources }
-```
-
 Regra de dependência: `presentation → application → domain ← infrastructure`.
 
 ## Funcionalidades
