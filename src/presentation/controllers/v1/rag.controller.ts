@@ -1,4 +1,5 @@
 import { ProcessQueryUseCase } from "@application/usecases/process-query/process-query.usecase";
+import { QueryThrottle } from "@infrastructure/http/decorators/throttle.decorator";
 import { Body, Controller, Post } from "@nestjs/common";
 import {
   ApiCreatedResponse,
@@ -19,6 +20,7 @@ export class RagController {
   constructor(private readonly processQueryUseCase: ProcessQueryUseCase) {}
 
   @Post("query")
+  @QueryThrottle()
   @ApiCreatedResponse({ type: RagResponseDto })
   async query(@Body() dto: ProcessQueryRequestDto): Promise<RagResponseDto> {
     return await this.processQueryUseCase.execute({
