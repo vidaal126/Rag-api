@@ -1,6 +1,7 @@
 import { IngestDocumentUseCase } from "@application/usecases/ingest-document/ingest-document.usecase";
 import { Department } from "@domain/entities/document/document.value-objects";
 import { PdfExtractor } from "@infrastructure/external/pdf/pdf-extractor";
+import { UploadThrottle } from "@infrastructure/http/decorators/throttle.decorator";
 import {
   BadRequestException,
   Controller,
@@ -12,7 +13,6 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiConsumes,
-  ApiCreatedResponse,
   ApiInternalServerErrorResponse,
   ApiQuery,
   ApiTags,
@@ -33,6 +33,7 @@ export class DocumentController {
   ) {}
 
   @Post()
+  @UploadThrottle()
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {

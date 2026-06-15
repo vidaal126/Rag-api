@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { envValidationSchema } from "@config/env.validation";
 import { HttpExceptionFilter } from "@infrastructure/http/filters/http-exception.filter";
-import { ThrottlerBehindProxyGuard } from "@infrastructure/http/guards/throttler-behind-proxy.guard";
 import { TraceIdInterceptor } from "@infrastructure/http/interceptors/trace-id.interceptor";
 import { TransformResponseInterceptor } from "@infrastructure/http/interceptors/transform-response.interceptor";
 import { Module, RequestMethod } from "@nestjs/common";
@@ -10,10 +9,11 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule, type Params } from "nestjs-pino";
 import type { LevelWithSilent } from "pino";
-import { SharedModule } from "./shared.module";
-import { UserModule } from "./user.module";
 import { DocumentModule } from "./document.module";
 import { RagModule } from "./rag.module";
+import { SharedModule } from "./shared.module";
+import { UserModule } from "./user.module";
+import { UserThrottlerGuard } from "@infrastructure/http/guards/throttler-behind-proxy.guard";
 
 interface PinoRequest extends IncomingMessage {
   routeOptions?: { url?: string };
@@ -77,7 +77,7 @@ interface PinoRequest extends IncomingMessage {
   ],
   controllers: [],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerBehindProxyGuard },
+    { provide: APP_GUARD, useClass: UserThrottlerGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TraceIdInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TransformResponseInterceptor },
