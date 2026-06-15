@@ -31,7 +31,8 @@ export class PiiSanitizerService {
     },
     {
       name: "SALARIO",
-      regex: /R\$\s?\d{1,3}(\.\d{3})*(,\d{2})?/g,
+      regex:
+        /(sal[aá]rio|remunera[cç][aã]o|vencimento|contra-cheque|holerite)\s*:?\s*R\$\s?\d{1,3}(\.\d{3})*(,\d{2})?/gi,
       replacement: "[VALOR REMOVIDO]",
     },
     {
