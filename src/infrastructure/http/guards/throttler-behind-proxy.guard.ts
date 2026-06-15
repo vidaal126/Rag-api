@@ -1,14 +1,30 @@
-import { Injectable } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
-import type { FastifyRequest } from 'fastify';
+import { Injectable } from "@nestjs/common";
+import { ThrottlerGuard } from "@nestjs/throttler";
+import type { FastifyRequest } from "fastify";
+
+interface RequestBody {
+  askedBy?: string;
+  uploadedBy?: string;
+}
+
+interface RequestQuery {
+  askedBy?: string;
+  uploadedBy?: string;
+}
 
 @Injectable()
-export class ThrottlerBehindProxyGuard extends ThrottlerGuard {
-  protected getTracker(req: FastifyRequest): Promise<string> {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return Promise.resolve(forwarded.split(',')[0].trim());
-    }
-    return Promise.resolve(req.ip ?? 'unknown');
+export class UserThrottlerGuard extends ThrottlerGuard {
+  protected override getTracker(req: FastifyRequest): Promise<string> {
+    const body = req.body as RequestBody | undefined;
+    const query = req.query as RequestQuery | undefined;
+
+    const userId =
+      body?.askedBy ??
+      body?.uploadedBy ??
+      query?.askedBy ??
+      query?.uploadedBy ??
+      req.ip;
+
+    return Promise.resolve(userId);
   }
 }
