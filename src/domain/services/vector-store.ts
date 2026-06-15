@@ -1,5 +1,4 @@
-import { DocumentId } from "@domain/entities/document/document.value-objects";
-import { Department } from "@domain/entities/document/document.value-objects";
+import { Department, DocumentId } from '@domain/entities/document/document.value-objects';
 
 export interface SimilarChunk {
   chunkId: string;
@@ -8,16 +7,16 @@ export interface SimilarChunk {
   similarity: number;
 }
 
+export interface VectorStoreChunk {
+  chunkId: string;
+  documentId: DocumentId;
+  department: Department;
+  content: string;
+  embedding: number[];
+}
+
 export abstract class IVectorStore {
-  abstract upsertChunks(
-    chunks: Array<{
-      chunkId: string;
-      documentId: DocumentId;
-      department: Department;
-      content: string;
-      embedding: number[];
-    }>,
-  ): Promise<void>;
+  abstract upsertChunks(chunks: VectorStoreChunk[]): Promise<void>;
 
   abstract findSimilar(
     embedding: number[],
