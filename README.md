@@ -34,14 +34,14 @@ src/
 │   └── services/                # ports: EmbeddingProvider, LlmProvider, VectorStore
 ├── application/
 │   ├── usecases/                # IngestDocument e ProcessQuery + DTOs internos
-│   └── services/                # ContentSanitizer (prompt injection)
+│   └── services/                # ContentSanitizer (prompt injection), PiiSanitizer
 ├── infrastructure/
 │   ├── database/prisma/         # schema.prisma, models/, migrations/, PrismaService
 │   ├── repositories/            # implementações Prisma (Document, RagQuery)
 │   ├── external/                # adapters Ollama (embedding, LLM) e PdfExtractor
 │   ├── services/                # PgVectorStore (SQL raw com pgvector)
 │   ├── mappers/                 # entidade ↔ modelo de persistência
-│   └── http/                    # guards, filters, interceptors, exceções base
+│   └── http/                    # guards, filters, interceptors, decorators, exceções base
 ├── presentation/
 │   ├── controllers/v1/          # controllers finos
 │   ├── dtos/                    # DTOs HTTP (class-validator + Swagger)
@@ -63,6 +63,7 @@ graph LR
     subgraph Application
         UC[Use Cases]
         SV[ContentSanitizer]
+        PS[PiiSanitizer]
     end
 
     subgraph Domain
@@ -76,6 +77,7 @@ graph LR
         OL[Ollama Adapters]
         PV[PgVectorStore]
         PD[PdfExtractor]
+        TG[UserThrottlerGuard]
     end
 
     CT --> UC
@@ -83,6 +85,8 @@ graph LR
     UC --> RP
     UC --> SP
     UC --> SV
+    UC --> PS
+    CT -->|throttle| TG
     PR -->|implements| RP
     OL -->|implements| SP
     PV -->|implements| SP
@@ -101,10 +105,12 @@ Regra de dependência: `presentation → application → domain ← infrastructu
 
 ## Segurança
 
-- Sanitização de conteúdo contra prompt injection
-- Isolamento por departamento na busca vetorial
-- Prompt reforçado contra override de instruções
-- Resposta padrão quando não há chunks relevantes
+- **Prompt injection** — `ContentSanitizerService` detecta e remove padrões de injeção no conteúdo ingerido, com normalização de texto (colapso de separadores/espaços), detecção linha a linha e cobertura de padrões em português e inglês (incluindo variações ofuscadas como `I-g-n-o-r-e`)
+- **PII** — `PiiSanitizerService` detecta e mascara CPF, CNPJ, e-mail, telefone, data de nascimento e salário (exige palavra-chave de contexto para evitar falsos positivos em documentos de política) antes de gravar os chunks no pgvector
+- **Rate limiting por usuário** — `UserThrottlerGuard` usa `askedBy`/`uploadedBy` como chave de rastreamento (fallback para IP); limites aplicados via decorators: `QueryThrottle` (20 req/min) e `UploadThrottle` (10 req/hora)
+- **Isolamento por departamento** — busca vetorial restrita ao departamento do solicitante (`HR`/`FINANCE`)
+- **Prompt reforçado** — instrução de sistema contra override de instruções no template de geração
+- **Resposta padrão** — fallback quando não há chunks relevantes, evitando alucinação
 
 ## Como rodar
 
