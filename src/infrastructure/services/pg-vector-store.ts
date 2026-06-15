@@ -1,11 +1,8 @@
-import {
-  DocumentId,
-  Department,
-} from "@domain/entities/document/document.value-objects";
-import { IVectorStore, SimilarChunk } from "@domain/services/vector-store";
-import { PrismaService } from "@infrastructure/database/prisma/prisma.service";
-import { Prisma } from "@infrastructure/database/prisma/generated/prisma/client";
-import { Injectable } from "@nestjs/common";
+import { Department, DocumentId } from '@domain/entities/document/document.value-objects';
+import { IVectorStore, SimilarChunk, VectorStoreChunk } from '@domain/services/vector-store';
+import { Prisma } from '@infrastructure/database/prisma/generated/prisma/client';
+import { PrismaService } from '@infrastructure/database/prisma/prisma.service';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class PgVectorStore extends IVectorStore {
@@ -18,7 +15,7 @@ export class PgVectorStore extends IVectorStore {
     topK: number,
     department: Department,
   ): Promise<SimilarChunk[]> {
-    const vectorLiteral = Prisma.raw(`'[${embedding.join(",")}]'::vector`);
+    const vectorLiteral = Prisma.raw(`'[${embedding.join(',')}]'::vector`);
 
     const rows = await this.prisma.$queryRaw<
       Array<{
@@ -47,19 +44,9 @@ export class PgVectorStore extends IVectorStore {
     }));
   }
 
-  async upsertChunks(
-    chunks: Array<{
-      chunkId: string;
-      documentId: DocumentId;
-      department: Department;
-      content: string;
-      embedding: number[];
-    }>,
-  ): Promise<void> {
+  async upsertChunks(chunks: VectorStoreChunk[]): Promise<void> {
     for (const chunk of chunks) {
-      const vectorLiteral = Prisma.raw(
-        `'[${chunk.embedding.join(",")}]'::vector`,
-      );
+      const vectorLiteral = Prisma.raw(`'[${chunk.embedding.join(',')}]'::vector`);
 
       await this.prisma.$executeRaw`
         INSERT INTO document_chunks (id, document_id, department, content, chunk_index, embedding)
