@@ -114,6 +114,21 @@ Regra de dependência: `presentation → application → domain ← infrastructu
 
 ## Como rodar
 
+## Pré-requisitos
+
+- Docker e Docker Compose instalados
+- Node.js 20+ e Yarn instalados
+- Ollama instalado: https://ollama.com/install.sh
+
+```bash
+# Instala o Ollama (Linux)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Baixa os modelos necessários
+ollama pull nomic-embed-text
+ollama pull qwen2.5:7b
+```
+
 ```bash
 cp .env.example .env
 
